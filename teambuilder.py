@@ -104,7 +104,6 @@ def load_players(csv_filename):
 def recommend_teams(players):
     valid_teams = []
     players.sort(key=lambda x: x.value, reverse=False)
-    starting_index_counter = [0] * len(TEAM_REQUIREMENTS)
 
     for p in players:
         t = Team()
@@ -120,15 +119,18 @@ def recurse_players(valid_teams, players, team, count=1):
         print team
     elif count > len(TEAM_REQUIREMENTS):
         del team
+        sys.stdout.write('.')
     else:
         for p in players:
             t = team.copy()
             if t.add(p): recurse_players(valid_teams, players, t, count + 1)
-            else: del t
+            else:
+                del t
+                sys.stdout.write('.')
 
-
-def run_test():
-    pass
+def run_tests():
+    players = load_players("test.csv")
+    recommend_teams(players)
 
 def print_values(players):
     players.sort(key=lambda x: x.value)
@@ -137,10 +139,15 @@ def print_values(players):
         print "%s\t%s\t%s\t%s" % (p.name, p.value, p.cost, p.avgfp)
 
 if __name__ == "__main__":
-    filename = sys.argv[1]
-    action = sys.argv[2]
 
-    players = load_players(filename)
+    if(len(sys.argv) == 3):
+        filename = sys.argv[2]
+        action = sys.argv[1]
+    elif(len(sys.argv) == 2):
+        action = sys.argv[1]
+        filename = None
+
+    if filename: players = load_players(filename)
 
     if action == 'recommend':
         recommend_teams(players)
