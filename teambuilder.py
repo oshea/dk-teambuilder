@@ -14,6 +14,21 @@ POSITIONS = {
     'C':  ('C', 'Util')
 }
 
+class PlayerCollection:
+    def __init__(self):
+        self.players_by_position = {}
+
+        for r in TEAM_REQUIREMENTS:
+            self.players_by_position[r] = []
+
+    def add(self, player):
+        for pos in player.positions():
+            self.players_by_position[pos].append(player)
+
+    def find(self, pos, max_cost=None):
+        if not max_cost: max_cost = SALARY_REQUIREMENT
+        return [p for p in self.players_by_position[pos] if p.cost <= max_cost]
+
 class Player:
     def __init__(self, id, attrs):
         self.id = id
@@ -30,6 +45,12 @@ class Player:
     def positions(self):
         return POSITIONS[self.position]
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
 class Team:
     def __init__(self):
         self.players = []
@@ -38,9 +59,15 @@ class Team:
         self.remaining_salary = copy.copy(SALARY_REQUIREMENT)
 
     def is_complete(self):
-        len(self.remaining_positions) == 0
+        return len(self.remaining_positions) == 0
 
     def is_valid(self):
+        if self.remaining_salary < 0:
+            return False
+        else:
+            return True
+
+    def is_valid2(self):
         if self.is_complete() and self.remaining_salary < 0:
             return False
         elif len(self.remaining_positions) == 0:
@@ -101,6 +128,16 @@ def load_players(csv_filename):
 
     return players
 
+def load_player_collection(csv_filename):
+    players = PlayerCollection()
+    with open('dailies/' + csv_filename, 'rb') as f:
+        reader = csv.reader(f)
+        for idx, row in enumerate(reader):
+            if idx != 0:
+                players.add(Player(idx, row))
+
+    return players
+
 def recommend_teams(players):
     valid_teams = []
     players.sort(key=lambda x: x.value, reverse=False)
@@ -128,9 +165,40 @@ def recurse_players(valid_teams, players, team, count=1):
                 del t
                 sys.stdout.write('.')
 
+
+def recommend_teams2(players):
+    valid_teams = []
+
+    for p in players.find('PG'):
+        t = Team()
+        t.add(p)
+        recurse_players2(valid_teams, players, t)
+
+    valid_teams.sort(key=lambda t: t.avgfp(), reverse=True)
+
+    print "# of valid teams: %d" % len(valid_teams)
+    print "Top team fp: %s cost: %s" % (valid_teams[0].avgfp(), SALARY_REQUIREMENT - valid_teams[0].remaining_salary)
+    print valid_teams[0]
+
+def recurse_players2(valid_teams, players, team, count=1):
+    if team.is_complete() and team.is_valid():
+        valid_teams.append(team)
+        print "Added valid team"
+    elif team.is_complete() and not team.is_valid():
+        del team
+    elif count > len(TEAM_REQUIREMENTS):
+        del team
+    else:
+        for p in players.find(team.remaining_positions[0]):
+            t = team.copy()
+            if t.add(p): recurse_players2(valid_teams, players, t, count + 1)
+            else:
+                del t
+
 def run_tests():
-    players = load_players("test.csv")
-    recommend_teams(players)
+    players = load_player_collection("test.csv")
+    recommend_teams2(players)
+
 
 def print_values(players):
     players.sort(key=lambda x: x.value)
